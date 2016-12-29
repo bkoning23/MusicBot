@@ -22,6 +22,17 @@ async def on_ready():
 	print(client.user.id)
 	print('-------')
 
+@client.command(pass_context=True)
+async def genji(context):
+        server = context.message.server
+        bot_voice_chan = client.voice_client_in(server)
+        if bot_voice_chan is None:
+                bot_voice_chan = await client.join_voice_channel(context.message.author.voice_channel)
+        player = bot_voice_chan.create_ffmpeg_player('test2.webm', use_avconv=True)
+        player.start()
+        
+                                                        
+
 @client.event
 async def on_message(message):
         if message.content.startswith('!test'):
@@ -79,8 +90,11 @@ async def process_song(message: str):
         new_song.title = result['title']
         new_song.uploader = result['uploader']
         new_song.duration = result['duration']
-        song_list.append(new_song)
-
+'''
+@client.command(pass_context=True)
+async def purge(context):
+        await client.purge_from(context.message.channel)
+'''
 @client.command(pass_context=True)
 async def stop(context):
         voice_client = client.voice_client_in(context.message.server)
