@@ -65,16 +65,13 @@ async def audio_complete(server):
         queue_complete = server_dict[server.id].queue_complete()
         if queue_complete:
                 await server.voice_client.disconnect()
-def test_audio_concluded():
-        coro = print("we CLOSED")
-        fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
-        fut.result()
 
 def submit_audio_to_queue(context, player):
         if context.message.server.id not in server_dict:
                 server_dict[context.message.server.id] = discordserver(client)
         server_dict[context.message.server.id].play(player)
 
+        
 @client.command(pass_context=True)
 async def play(context, message: str):
         bot_voice_chan = await get_voice_client(context)
@@ -85,7 +82,7 @@ async def play(context, message: str):
                 ydl_opts = {}
         else:
                 ydl_opts = {'default_search': 'ytsearch:'}
-        player = await bot_voice_chan.create_ytdl_player(message, use_avconv=True, ytdl_options=ydl_opts, after=lambda: after_audio_concluded(context.message.server)
+        player = await bot_voice_chan.create_ytdl_player(message, use_avconv=True, ytdl_options=ydl_opts, after=lambda: after_audio_concluded(context.message.server))
         submit_audio_to_queue(context, player)
         await client.say(("{} - {} ({})").format(player.title, player.uploader, str(datetime.timedelta(seconds=player.duration))))
                 
@@ -106,8 +103,10 @@ async def get_voice_client(context):
         return bot_voice_chan
 
 @client.command(pass_context=True)
-async def skip(context):
-        server_dict[context.message.server.id].skip_song()
+async def skip(context):                                                        
+        await client.say("Skip doesn't work good luck")
+        '''server_dict[context.message.server.id].skip_song()
+        '''
         
 @client.command(pass_context=True)
 async def volume(context, message: str):
