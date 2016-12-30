@@ -5,15 +5,14 @@ import datetime
 from song import song
 import youtube_dl
 from collections import deque
-
+from discordserver import discordserver
+import random
+import os
 
 client = commands.Bot(command_prefix='!', description="")
 token = 'MjYxMjcyNDY2NzE3MDE2MDc0.C0GBrw.nTyS9_lZMfOznPKmPOhXmUvtgik'
 
-player_dict = {}
-song_list = deque()
-
-play_lock = asyncio.Lock()
+server_dict = {}
 
 @client.event
 async def on_ready():
@@ -24,98 +23,101 @@ async def on_ready():
 
 @client.command(pass_context=True)
 async def genji(context):
-        server = context.message.server
-        bot_voice_chan = client.voice_client_in(server)
+        bot_voice_chan = await get_voice_client(context)
         if bot_voice_chan is None:
-                bot_voice_chan = await client.join_voice_channel(context.message.author.voice_channel)
-        player = bot_voice_chan.create_ffmpeg_player('test2.webm', use_avconv=True)
-        player.start()
-        
-                                                        
+                await client.say("You must be in a voice channel to play audio")
+                return None
+        player = bot_voice_chan.create_ffmpeg_player('sound_bites/progenji.webm', use_avconv=True, after=lambda: after_audio_concluded(context.message.server))
+        player.title = "Genji"
+        player.uploader = "Genji"
+        player.duration = 0
+        submit_audio_to_queue(context, player)
+        print("Submit Genji")
 
-@client.event
-async def on_message(message):
-        if message.content.startswith('!test'):
-                await client.send_message(message.channel, 'Cookie is awesome')
-        elif message.content.startswith('!playasdfasdf'):
-                channel = discord.utils.get(message.server.channels, name='General', type=discord.ChannelType.voice)
-                voice = await client.join_voice_channel(channel)
-                player = await voice.create_ytdl_player('https://www.youtube.com/watch?v=dQw4w9WgXcQ', use_avconv=True)
-                player.start()
-        await client.process_commands(message)
+@client.command(pass_context=True)
+async def nosey(context):
+        bot_voice_chan = await get_voice_client(context)
+        if bot_voice_chan is None:
+                await client.say("You must be in a voice channel to play audio")
+                return None
+        file = random.choice(os.listdir('sound_bites/nosey'))
+        player = bot_voice_chan.create_ffmpeg_player('sound_bites/nosey/' + file, use_avconv=True, after=lambda: after_audio_concluded(context.message.server))
+        player.title = "Nosey"
+        player.uploader = "Nosey"
+        player.duration = 0
+        submit_audio_to_queue(context, player)
+        print("Submit Nosey")
 
-@client.command()
-async def echo(message: str):
-        await client.say(message)
+@client.command(pass_context=True)
+async def tidus(context):
+        bot_voice_chan = await get_voice_client(context)
+        if bot_voice_chan is None:
+                await client.say("You must be in a voice channel to play audio")
+                return None
+        player = bot_voice_chan.create_ffmpeg_player('sound_bites/tidus.m4a', use_avconv=True, after=lambda: after_audio_concluded(context.message.server))
+        player.title = "Tidus"
+        player.uploader = "Tidus"
+        player.duration = 0
+        submit_audio_to_queue(context, player)
+        print("Submit Tidus")
+
+async def audio_complete(server):
+        queue_complete = server_dict[server.id].queue_complete()
+        if queue_complete:
+                await server.voice_client.disconnect()
+def test_audio_concluded():
+        coro = print("we CLOSED")
+        fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
+        fut.result()
+
+def submit_audio_to_queue(context, player):
+        if context.message.server.id not in server_dict:
+                server_dict[context.message.server.id] = discordserver(client)
+        server_dict[context.message.server.id].play(player)
 
 @client.command(pass_context=True)
 async def play(context, message: str):
-        await play_lock
-        try:
-                user_voice_chan = context.message.author.voice_channel
-                bot_voice_chan = client.voice_client_in(context.message.server)
-                if user_voice_chan is None:
-                        await client.say("You must be in a voice channel to play audio")
-                if bot_voice_chan is None:
-                        bot_voice_chan = await client.join_voice_channel(user_voice_chan)
-                await process_song(message)
-                if (bot_voice_chan.server not in player_dict):
-                        song = song_list.popleft()
-                        player = await bot_voice_chan.create_ytdl_player('https://youtube.com/watch?v={}'.format(song.yt_id), use_avconv=True)
-                        await client.say(("{} - {} ({})").format(song.title, song.uploader, str(datetime.timedelta(seconds=song.duration))))
-                        player_dict[bot_voice_chan.server] = player
-                        player.start()
-        finally:
-                play_lock.release()
+        bot_voice_chan = await get_voice_client(context)
+        if bot_voice_chan is None:
+                await client.say("You must be in a voice channel to play audio")
+                return None
+        if(message.startswith("https://www.youtube.com/")):
+                ydl_opts = {}
+        else:
+                ydl_opts = {'default_search': 'ytsearch:'}
+        player = await bot_voice_chan.create_ytdl_player(message, use_avconv=True, ytdl_options=ydl_opts, after=lambda: after_audio_concluded(context.message.server)
+        submit_audio_to_queue(context, player)
+        await client.say(("{} - {} ({})").format(player.title, player.uploader, str(datetime.timedelta(seconds=player.duration))))
                 
-@client.command()
-async def queue():
-        i = 0 
-        for p in song_list:
+@client.command(pass_context=True)
+async def queue(context):
+        i = 1 
+        for p in server_dict[context.message.server.id].queue:
                 await client.say(("{}. {} - {} ({})").format(i, p.title, p.uploader, str(datetime.timedelta(seconds=p.duration))))
                 i = i + 1
 
-async def process_song(message: str):
-        ydl_opts = {}
+async def get_voice_client(context):
+        bot_voice_chan = client.voice_client_in(context.message.server)
+        user_voice_chan = context.message.author.voice_channel
+        if user_voice_chan is None:
+                return None
+        if bot_voice_chan is None:
+                bot_voice_chan = await client.join_voice_channel(user_voice_chan)
+        return bot_voice_chan
 
-        if(message.startswith("https://www.youtube.com/")):
-                pass
-        else:
-                ydl_opts = {'default_search': 'ytsearch:'}
-        new_song = None
-        ydl = youtube_dl.YoutubeDL(ydl_opts)
-        with ydl:
-                result = ydl.extract_info(message, download=False)
-        new_song = song(result['id'])
-        new_song.title = result['title']
-        new_song.uploader = result['uploader']
-        new_song.duration = result['duration']
-'''
 @client.command(pass_context=True)
-async def purge(context):
-        await client.purge_from(context.message.channel)
-'''
-@client.command(pass_context=True)
-async def stop(context):
-        voice_client = client.voice_client_in(context.message.server)
-        if voice_client is None:
-                await client.say("I'm not connected")
-        else:
-                player = player_dict[voice_client.server]
-                player.pause()
-                await asyncio.sleep(5)
-                await client.say("I'm connected")
-                player.resume()
+async def skip(context):
+        server_dict[context.message.server.id].skip_song()
         
 @client.command(pass_context=True)
 async def volume(context, message: str):
-        print(message)
         voice_client = client.voice_client_in(context.message.server)
         if voice_client is None:
                 await client.say("I'm not connected")
         elif 0 <= float(message) <= 200:
-                player = player_dict[voice_client.server]
-                player.volume = float(message) / 100
+                server_dict[context.message.server.id].current_player.volume = float(message) / 100
+                await client.say(("Volume is {}").format(message))
+        
         else:
                 await client.say("Nah man.")
 
