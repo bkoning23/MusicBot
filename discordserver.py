@@ -27,6 +27,4 @@ class discordserver:
         return False
 
     def skip_song(self):
-        print(self.current_player)
         self.current_player.stop()
-        print(self.current_player)
