@@ -62,14 +62,17 @@ async def tidus(context):
         print("Submit Tidus")
 
 def after_audio_completed(server):
-        print('made it')
         coro = audio_complete(server)
         fut = asyncio.run_coroutine_threadsafe(coro, client.loop)
         try:
                 fut.result()
         except:
+                print (sys.exc_info()[0])
                 print('we fucked')
-        
+
+async def test_audio_complete(server):
+        print ("Test")
+
 async def audio_complete(server):
         print("audio complete")
         queue_complete = server_dict[server.id].queue_complete()
