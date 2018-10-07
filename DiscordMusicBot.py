@@ -2,7 +2,6 @@ import discord
 import asyncio
 from discord.ext import commands
 import datetime
-from song import song
 import youtube_dl
 from collections import deque
 from discordserver import discordserver
@@ -10,12 +9,18 @@ import random
 import os
 from dateutil import parser
 import math
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
 
 client = commands.Bot(command_prefix='!', description="")
-token = ''
+token = config['DEFAULT']['token']
 
 server_dict = {}
 numbers = {'a':1,'b':2,'c':3,'d':4,'e':5,'f':6,'g':7,'h':8,'i':1,'j':2,'k':3,'l':4,'m':5,'n':6,'o':7,'p':8}
+
 
 
 @client.event
